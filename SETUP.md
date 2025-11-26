@@ -54,6 +54,16 @@ modal deploy app.py
 
 This will output a URL like: `https://your-username--voice-bot-gemini-baml-fastapi-app.modal.run`
 
+**Important:** Copy this URL and update the Modal secret for WebSocket connections:
+
+```bash
+# Convert HTTP URL to WebSocket URL (https -> wss)
+modal secret create modal-config \
+  MODAL_WEBSOCKET_URL=wss://your-username--voice-bot-gemini-baml-fastapi-app.modal.run
+```
+
+Then add this secret to the app.py function decorator (add to secrets list).
+
 ### 6. Configure Twilio
 
 1. Go to your Twilio Console

@@ -6,7 +6,7 @@ A voice bot using Twilio, Gemini, and BAML for car rental information.
 
 - **Twilio Integration**: Receives incoming phone calls via webhook
 - **Gemini Voice Agent**: Answers questions about car rental details
-- **BAML Intent Extraction**: Asynchronously extracts caller intent and questions
+- **BAML Intent Extraction**: Asynchronously extracts caller intent and questions (currently simulated - see BAML Integration section)
 - **Profile Saving**: Saves renter profiles as JSON after each call
 
 ## Setup
@@ -40,3 +40,23 @@ The application consists of:
 ## Usage
 
 Configure your Twilio phone number to point to the webhook URL provided by Modal after deployment.
+
+## BAML Integration
+
+The current implementation includes BAML function definitions in `baml_src/main.baml` and a simulated processor for demonstration. To enable full BAML integration:
+
+1. **Generate BAML client code:**
+   ```bash
+   baml generate
+   ```
+
+2. **Update the BAMLProcessor class** in `app.py` to use the generated client (see inline comments in the code)
+
+3. **Replace simulated methods** with actual BAML function calls
+
+The BAML definitions include:
+- `ExtractIntent`: Identifies caller's primary intent
+- `ExtractQuestions`: Captures distinct questions asked
+- `ExtractRenterProfile`: Extracts structured profile information
+
+For more details, see [ARCHITECTURE.md](ARCHITECTURE.md) and [CONTRIBUTING.md](CONTRIBUTING.md).

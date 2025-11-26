@@ -174,11 +174,24 @@ Keep responses brief and conversational since this is a voice call.
 
 
 class BAMLProcessor:
-    """Processes conversation using BAML functions"""
+    """
+    Processes conversation using BAML functions
+    
+    NOTE: This is currently a SIMULATED implementation for demonstration purposes.
+    
+    To use real BAML integration:
+    1. Run `baml generate` to create the Python client from baml_src/main.baml
+    2. Import the generated client: `from baml_client import b`
+    3. Replace simulated methods with actual BAML calls:
+       - intent = await b.ExtractIntent(conversation)
+       - questions = await b.ExtractQuestions(conversation)
+       - profile = await b.ExtractRenterProfile(conversation)
+    """
     
     def __init__(self):
-        # In a real implementation, this would use the actual BAML generated code
-        # For now, we'll simulate the BAML functionality
+        # TODO: Replace with actual BAML client initialization
+        # from baml_client import b
+        # self.client = b
         pass
     
     async def extract_intent(self, conversation: str) -> str:
@@ -271,8 +284,10 @@ async def twilio_webhook(request: Request):
     
     # Connect to our WebSocket endpoint
     connect = Connect()
-    # Note: In production, replace with your actual Modal endpoint URL
-    websocket_url = f"wss://your-modal-app.modal.run/ws/{call_sid}"
+    # Get WebSocket URL from environment or use a placeholder
+    # Set MODAL_WEBSOCKET_URL environment variable to your actual Modal deployment URL
+    base_url = os.environ.get("MODAL_WEBSOCKET_URL", "wss://your-modal-app.modal.run")
+    websocket_url = f"{base_url}/ws/{call_sid}"
     stream = Stream(url=websocket_url)
     connect.append(stream)
     response.append(connect)
