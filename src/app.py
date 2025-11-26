@@ -5,7 +5,7 @@ A Modal app with FastAPI serving Twilio webhooks and WebSocket connections
 
 import os
 import asyncio
-from typing import Dict
+from pathlib import Path
 
 import modal
 from fastapi import FastAPI, WebSocket, Request, Response
@@ -19,16 +19,21 @@ from voice_agent import (
     start_gemini_session,
 )
 from google.genai import types as gt
+from baml_client import types
 from dotenv import load_dotenv
 import requests
 
 load_dotenv()
 
 if os.getenv("RUN_LOCAL") == "1":
-    active_sessions: Dict[str, CallSession] = {}
+    ACTIVE_SESSIONS: dict[str, CallSession] = {}
+    USER_SESSIONS: dict[str, types.CallerData] = {}
 else:
-    active_sessions: dict[str, CallSession] = modal.Dict.from_name(  # type: ignore
+    ACTIVE_SESSIONS: dict[str, CallSession] = modal.Dict.from_name(  # type: ignore
         "active-sessions", create_if_missing=True
+    )
+    USER_SESSIONS: dict[str, types.CallerData] = modal.Dict.from_name(  # type: ignore
+        "user-sessions", create_if_missing=True
     )
 
 
@@ -86,7 +91,12 @@ async def twilio_webhook(request: Request):
 
     # Create new call session
     session = CallSession(call_sid, from_number)
-    active_sessions[from_number] = session
+    ACTIVE_SESSIONS[from_number] = session
+    if from_number not in USER_SESSIONS:
+        USER_SESSIONS[from_number] = types.CallerData(
+            profile=types.CallerProfile(car_preferences=[], additional_notes=[]),
+            questions=[],
+        )
 
     # Create TwiML response to connect to WebSocket
     response = VoiceResponse()
@@ -123,14 +133,17 @@ async def websocket_endpoint(ws: WebSocket, from_number: str):
     print("Got stream SID")
 
     # Get or create session
-    session = active_sessions[from_number]
+    session = ACTIVE_SESSIONS[from_number]
+    caller_data = USER_SESSIONS.get(from_number)
+    if caller_data:
+        session.renter_profile = caller_data
     send_twililo_queue: asyncio.Queue[gt.Part] = asyncio.Queue()
     user_interrupt = asyncio.Event()
     end_call = asyncio.Event()
     try:
-        async for gs in start_gemini_session(session):
+        async for gs in start_gemini_session():
             await asyncio.gather(
-                baml_processing_loop(session),
+                baml_processing_loop(session, end_call),
                 send_to_twilio(
                     ws,
                     stream_sid,
@@ -159,8 +172,14 @@ async def websocket_endpoint(ws: WebSocket, from_number: str):
 
         traceback.print_exc()
     finally:
-        active_sessions[from_number] = session
-        await ws.close()
+        ACTIVE_SESSIONS[from_number] = session
+        USER_SESSIONS[from_number] = session.renter_profile
+        await session.save_profile(Path("./profiles"))
+        try:
+            end_call.set()
+            await ws.close()
+        except Exception:
+            pass
         print(f"WebSocket closed for call: {from_number}")
 
 

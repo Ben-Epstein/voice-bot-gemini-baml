@@ -19,7 +19,6 @@ class CallSession:
     def __init__(self, call_sid: str, caller_number: str):
         self.call_sid = call_sid
         self.caller_number: str = caller_number
-        self.conversation_history: list[dict[str, str]] = []
         self.start_time = datetime.now()
         self.intents: list[str] = []
         self.questions: list[str] = []
@@ -29,17 +28,9 @@ class CallSession:
         )
         self.transcript: list[TranscriptEntry] = []
 
-    def add_message(self, role: str, content: str):
-        """Add a message to conversation history"""
-        self.conversation_history.append(
-            {"role": role, "content": content, "timestamp": datetime.now().isoformat()}
-        )
-
     def get_conversation_text(self) -> str:
         """Get conversation as plain text"""
-        return "\n".join(
-            [f"{msg['role']}: {msg['content']}" for msg in self.conversation_history]
-        )
+        return "\n".join([f"{msg.speaker}: {msg.text}" for msg in self.transcript])
 
     async def save_profile(self, profiles_dir: Path):
         """Save renter profile to JSON file"""
@@ -47,10 +38,10 @@ class CallSession:
             "call_sid": self.call_sid,
             "start_time": self.start_time.isoformat(),
             "end_time": datetime.now().isoformat(),
-            "conversation": self.conversation_history,
+            "transcript": self.get_conversation_text(),
             "intents": self.intents,
             "questions": self.questions,
-            "renter_profile": self.renter_profile,
+            "renter_profile": self.renter_profile.model_dump(),
         }
 
         profiles_dir.mkdir(parents=True, exist_ok=True)

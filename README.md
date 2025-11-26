@@ -27,6 +27,11 @@ cp .env.example .env
 modal deploy app.py
 ```
 
+Or run locally (set `RUN_LOCAL=1`)
+```bash
+uv run uvicorn --app-dir src app:web_app --host 0.0.0.0 --port 8000
+```
+
 ## Architecture
 
 The application consists of:

@@ -82,7 +82,7 @@ async def show_top_cars(
     seats_gte: int | None = None,
     order_by: Literal["year", "price", "mileage"] = "price",
     top_n: int = 5,
-) -> list[types.CarInfo]:
+) -> dict:
     relevant_cars = [
         car
         for car in CAR_DATABASE
@@ -100,7 +100,8 @@ async def show_top_cars(
         and (not features or all(feature in car.features for feature in features))
     ]
     relevant_cars.sort(key=lambda car: getattr(car, order_by))
-    return relevant_cars[:top_n]
+    print(relevant_cars[:top_n])
+    return {"top_cars": [c.model_dump() for c in relevant_cars[:top_n]]}
 
 
 can_end_call_decl = {
@@ -187,7 +188,7 @@ show_top_cars_decl = {
             },
             "fuel_efficiency_gte": {
                 "type": "integer",
-                "description": "Minimum fuel efficiency (MPG).",
+                "description": "Minimum fuel efficiency (mileage/MPG).",
             },
             "features": {
                 "type": "array",
@@ -206,7 +207,7 @@ show_top_cars_decl = {
             },
             "top_n": {
                 "type": "integer",
-                "description": "Number of top results to return.",
+                "description": "Number of car results to return. Default 3, can be set higher.",
             },
         },
     },
@@ -235,8 +236,8 @@ TOOLS_DECL = [
 ]
 
 
-SYSTEM_PROMPT = f"""You are a helpful car rental saleswoman. 
-You help customers find the right rental car for their needs selling the best parts of the car to their unique needs.
+SYSTEM_PROMPT = f"""You're name is Joanne, and are a world-class car saleswoman. 
+You help customers find the right rental or full purchase car for their needs selling the best parts of the car to their unique needs.
 You have information about various cars including economy, SUV, luxury, and van options.
 Be friendly, concise, and helpful. Answer questions about:
 - Car availability and features
@@ -248,29 +249,45 @@ Keep responses brief and conversational since this is a voice call. During the c
 information from the customer:
 {types.CallerProfile.model_json_schema()}
 
-The first thing you should do is call te get_caller_profile tool to get the current caller profile, as they may
-have already called before. If there is profile data, you can reference it in your responses.
+The first thing you should do is call `get_caller_profile` tool to get the current caller profile, as they may
+have already called before. If there is profile data, you can reference it in your responses. If not, introduce yourself,
+ask for their name, and begin learning about their needs. You should start by getting their name if you don't have it yet.
+
+At any point, you can call `get_caller_profile` again to get the most up-to-date information about the caller.
+
+You are looking to sell a car today. Use `show_top_cars` to see the cars available, and pass in the filters based on what you learn about the renter.
+
+If at any point the renter asks to speak to a human agent, or if you determine that the renter would be better served by a human agent, you should first call `can_transfer_to_human` to check if a human agent is available. If it returns true, call `transfer_to_human` to transfer the call.
+If the renter is being rude, or otherwise inappropriate, you can choose to end the call by first calling `can_end_call` to check if it's appropriate to end the call, and if it returns true, call `end_call` to end the call.
+If the call is over and there's nothing else to do, you can call `can_end_call` to see if you can end the call. If it's true, call `end_call` to end the call
 
 Here is the schema of the car database you can reference when recommending cars:
 {types.CarInfo.model_json_schema()}.
 """
 
 
-async def baml_processing_loop(session: CallSession):
+async def baml_processing_loop(session: CallSession, end_call_event: asyncio.Event):
     """Async loop to extract intent and questions periodically"""
-    while True:
+    while True and not end_call_event.is_set():
         try:
             await asyncio.sleep(2)  # Process every 5 seconds
-
-            if len(session.conversation_history) > 0:
+            if len(session.transcript) > 0:
                 conversation_text = session.get_conversation_text()
                 questions, profile = await asyncio.gather(
                     b.ExtractQuestions(conversation_text),
                     b.ExtractRenterProfile(conversation_text),
                 )
-                session.renter_profile = session.renter_profile.model_copy(
-                    update={"questions": questions, **profile.model_dump()}
+                # update the profile
+                existing_profile = session.renter_profile.profile.model_dump()
+                existing_profile.update(profile.model_dump())
+                session.renter_profile.profile = types.CallerProfile.model_validate(
+                    existing_profile
                 )
+                session.renter_profile.questions.extend(questions)
+                session.renter_profile.questions = sorted(
+                    set(session.renter_profile.questions)
+                )
+                # print("Updated session profile: ", session.renter_profile)
 
         except asyncio.CancelledError:
             break
@@ -278,7 +295,7 @@ async def baml_processing_loop(session: CallSession):
             print(f"Error in BAML processing: {e}")
 
 
-async def start_gemini_session(session: CallSession):
+async def start_gemini_session():
     """Initialize a Gemini Live session with Grotto's system prompt and tools."""
     CONFIG = {
         "response_modalities": ["AUDIO"],
@@ -326,7 +343,7 @@ async def handle_tool_calls(
     function_calls: list[gt.FunctionCall],
     send_twililo_queue: asyncio.Queue,
     stream_sid: str,
-    end_call: asyncio.Event,
+    end_call_event: asyncio.Event,
 ) -> list[gt.FunctionResponse]:
     function_responses = []
     for fc in function_calls or []:
@@ -334,7 +351,6 @@ async def handle_tool_calls(
         if not fc.name:
             continue
         if fc.name in ("transfer_to_human", "end_call"):
-            print("Waiting for queue to drain")
             while not send_twililo_queue.empty():
                 await asyncio.sleep(0.05)
             if fc.name == "transfer_to_human":
@@ -349,7 +365,8 @@ async def handle_tool_calls(
                 TWILIO_CLIENT.calls(session.call_sid).update(
                     twiml=f"<Response><Dial>{HUMAN_NUMBER}</Dial></Response>"
                 )
-            end_call.set()
+            await asyncio.sleep(2)  # wait for 2 seconds to ensure twilio processes
+            end_call_event.set()
             await ws.send_json(
                 {
                     "event": "close",
@@ -358,7 +375,17 @@ async def handle_tool_calls(
             )
             await ws.close(code=1000, reason="Call ended by agent")
             return []
-
+        if fc.name == "get_caller_profile":
+            result = session.renter_profile.model_dump()
+            function_responses.append(
+                gt.FunctionResponse(
+                    id=fc.id,
+                    name=fc.name,
+                    response=result,
+                )
+            )
+            print(f"GOT CALLER PROFILE {result}")
+            continue
         handler = TOOLS.get(fc.name)
         if handler:
             try:
@@ -389,7 +416,8 @@ async def receive_from_gemini(
     send_twililo_queue: asyncio.Queue,
     end_call_event: asyncio.Event,
 ):
-    while True:
+    while True and not end_call_event.is_set():
+        print(f"Session (in gemini recv loop): {session.renter_profile.profile.name}")
         async for response in gs.receive():
             try:
                 if (
