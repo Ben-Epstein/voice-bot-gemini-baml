@@ -1,0 +1,56 @@
+{
+  "call_sid": "CA1234567890abcdef",
+  "start_time": "2024-01-15T10:30:00",
+  "end_time": "2024-01-15T10:35:30",
+  "conversation": [
+    {
+      "role": "user",
+      "content": "Hi, I'm looking to rent a car",
+      "timestamp": "2024-01-15T10:30:15"
+    },
+    {
+      "role": "assistant",
+      "content": "Hello! I'd be happy to help you find a rental car. We have economy, SUV, luxury, and van options. What type of vehicle are you interested in?",
+      "timestamp": "2024-01-15T10:30:18"
+    },
+    {
+      "role": "user",
+      "content": "What's the price for an economy car?",
+      "timestamp": "2024-01-15T10:30:45"
+    },
+    {
+      "role": "assistant",
+      "content": "Our Economy Sedan is $45 per day. It's a 4-door, 5-seat automatic with AC and Bluetooth, and gets about 35 MPG.",
+      "timestamp": "2024-01-15T10:30:48"
+    },
+    {
+      "role": "user",
+      "content": "That sounds good. I need it for this weekend",
+      "timestamp": "2024-01-15T10:31:20"
+    },
+    {
+      "role": "assistant",
+      "content": "Great choice! Our Economy Sedan will be perfect for the weekend. Would you like to proceed with a reservation?",
+      "timestamp": "2024-01-15T10:31:23"
+    }
+  ],
+  "intents": [
+    "Inquiring about pricing",
+    "Wants to make a reservation"
+  ],
+  "questions": [
+    "What's the price for an economy car?"
+  ],
+  "renter_profile": {
+    "name": null,
+    "phone": "+15551234567",
+    "email": null,
+    "rental_dates": "this weekend",
+    "car_preferences": [
+      "economy"
+    ],
+    "budget_range": null,
+    "location": null,
+    "additional_notes": "Looking for weekend rental"
+  }
+}

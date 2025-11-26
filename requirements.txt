@@ -1,0 +1,14 @@
+modal
+fastapi
+uvicorn
+twilio
+google-generativeai
+websockets
+python-dotenv
+pydantic
+aiofiles
+baml-py
+pytest
+pytest-asyncio
+httpx
+python-multipart

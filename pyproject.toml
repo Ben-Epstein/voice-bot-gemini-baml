@@ -1,0 +1,21 @@
+[project]
+name = "voice-bot-gemini-baml"
+version = "0.1.0"
+description = "A voice bot using Twilio, Gemini, and BAML"
+requires-python = ">=3.11"
+dependencies = [
+    "modal",
+    "fastapi",
+    "uvicorn",
+    "twilio",
+    "google-generativeai",
+    "websockets",
+    "python-dotenv",
+    "pydantic",
+    "aiofiles",
+    "baml-py",
+]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
