@@ -64,6 +64,7 @@ PYTHON_SOURCES = [
 image = (
     modal.Image.debian_slim(python_version="3.11")
     .uv_sync()
+    .env({"BAML_LOG": "off"})
     .add_local_python_source(*PYTHON_SOURCES)
 )
 

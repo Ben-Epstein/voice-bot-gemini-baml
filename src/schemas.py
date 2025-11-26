@@ -30,7 +30,21 @@ class CallSession:
 
     def get_conversation_text(self) -> str:
         """Get conversation as plain text"""
-        return "\n".join([f"{msg.speaker}: {msg.text}" for msg in self.transcript])
+        # Group messages by speaker
+        if not self.transcript:
+            return ""
+        messages = []
+        cur_msg = self.transcript[0].text
+        last_speaker = self.transcript[0].speaker
+        for msg in self.transcript[1:]:
+            if msg.speaker == last_speaker:
+                cur_msg += " " + msg.text
+            else:
+                messages.append(TranscriptEntry(speaker=last_speaker, text=cur_msg))
+                cur_msg = msg.text
+                last_speaker = msg.speaker
+        messages.append(TranscriptEntry(speaker=last_speaker, text=cur_msg))
+        return "\n".join([f"{msg.speaker}: {msg.text}" for msg in messages])
 
     async def save_profile(self, profiles_dir: Path):
         """Save renter profile to JSON file"""

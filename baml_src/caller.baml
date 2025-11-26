@@ -102,7 +102,7 @@ class CallerData {
 }
 
 function ExtractRenterProfile(conversation: string) -> CallerProfile {
-  client ModalGemma3_4B
+  client AppModel
   prompt #"
     {{ _.role("user" )}}
     Extract renter profile information from this car rental inquiry conversation.

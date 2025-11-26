@@ -75,6 +75,11 @@ async def can_transfer_to_human() -> dict:
     }
 
 
+"""
+show_top_cars with args {'type': 'suv', 'makes': ['Honda'], 'order_by': 'price', 'top_n': 3, 'sale_type': 'sale', 'budget_high': 70000}
+"""
+
+
 async def show_top_cars(
     makes: list[str] | None = None,
     models: list[str] | None = None,
@@ -101,7 +106,7 @@ async def show_top_cars(
         and (not budget_low or car.price >= budget_low)
         and (not budget_high or car.price <= budget_high)
         and (not car_type or car.type == car_type)
-        and (not sale_type or car.sale_type == sale_type)
+        and (not sale_type or car.sale_type in (sale_type, "both"))
         and (not fuel_efficiency_gte or car.fuel_efficiency >= fuel_efficiency_gte)
         and (not horsepower_gte or car.horsepower >= horsepower_gte)
         and (not seats_gte or car.seats >= seats_gte)
@@ -187,12 +192,12 @@ show_top_cars_decl = {
             "car_type": {
                 "type": "string",
                 "enum": literal_union_values(types.CarType),
-                "description": "Type of car (e.g., SUV, sedan).",
+                "description": "`car_type`. Type of car (e.g., SUV, sedan).",
             },
             "sale_type": {
                 "type": "string",
                 "enum": literal_union_values(types.SaleType),
-                "description": "Sale type (e.g., rental, lease).",
+                "description": "`sale_type`. Sale type (e.g., rental, lease).",
             },
             "fuel_efficiency_gte": {
                 "type": "integer",
@@ -398,8 +403,10 @@ async def handle_tool_calls(
         if handler:
             try:
                 if fc.args:
+                    print(f"Calling {fc.name} with args {fc.args}")
                     result = await handler(**fc.args)
                 else:
+                    print(f"Calling {fc.name} with no args")
                     result = await handler()
             except BaseException as e:
                 result = {"error": f"Tool call failed: {str(e)}"}
@@ -469,7 +476,7 @@ async def receive_from_gemini(
                     response.server_content
                     and response.server_content.output_transcription
                 ):
-                    print(f"Agent: {response.server_content.output_transcription.text}")
+                    # print(f"Agent: {response.server_content.output_transcription.text}")
                     session.transcript.append(
                         TranscriptEntry(
                             speaker="agent",
