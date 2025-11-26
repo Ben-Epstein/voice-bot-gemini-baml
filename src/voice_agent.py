@@ -25,6 +25,14 @@ TWILIO_ACCOUNT_SID = os.environ["TWILIO_ACCOUNT_SID"]
 TWILIO_AUTH_TOKEN = os.environ["TWILIO_AUTH_TOKEN"]
 TWILIO_CLIENT = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
 
+if os.environ["GOOGLE_APPLICATION_CREDENTIALS"].startswith("{"):
+    creds_data = os.environ["GOOGLE_APPLICATION_CREDENTIALS"]
+    creds_path = "/tmp/google_creds.json"
+    with open(creds_path, "w") as f:
+        f.write(creds_data)
+    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = creds_path
+
+
 client = genai.Client(
     vertexai=True,
     project=os.environ["PROJECT_ID"],
@@ -417,7 +425,6 @@ async def receive_from_gemini(
     end_call_event: asyncio.Event,
 ):
     while True and not end_call_event.is_set():
-        print(f"Session (in gemini recv loop): {session.renter_profile.profile.name}")
         async for response in gs.receive():
             try:
                 if (

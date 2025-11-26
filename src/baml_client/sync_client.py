@@ -170,6 +170,29 @@ class BamlSyncClient:
                 result.cast_to(types, types, stream_types, False, __runtime__),
             )
 
+    def GenerateQuestion(
+        self,
+        conversation: str,
+        baml_options: BamlCallOptions = {},
+    ) -> str:
+        # Check if on_tick is provided
+        if "on_tick" in baml_options:
+            stream = self.stream.GenerateQuestion(
+                conversation=conversation, baml_options=baml_options
+            )
+            return stream.get_final_response()
+        else:
+            # Original non-streaming code
+            result = self.__options.merge_options(baml_options).call_function_sync(
+                function_name="GenerateQuestion",
+                args={
+                    "conversation": conversation,
+                },
+            )
+            return typing.cast(
+                str, result.cast_to(types, types, stream_types, False, __runtime__)
+            )
+
 
 class BamlStreamClient:
     __options: DoNotUseDirectlyCallManager
@@ -248,6 +271,28 @@ class BamlStreamClient:
             ctx,
         )
 
+    def GenerateQuestion(
+        self,
+        conversation: str,
+        baml_options: BamlCallOptions = {},
+    ) -> baml_py.BamlSyncStream[str, str]:
+        ctx, result = self.__options.merge_options(baml_options).create_sync_stream(
+            function_name="GenerateQuestion",
+            args={
+                "conversation": conversation,
+            },
+        )
+        return baml_py.BamlSyncStream[str, str](
+            result,
+            lambda x: typing.cast(
+                str, x.cast_to(types, types, stream_types, True, __runtime__)
+            ),
+            lambda x: typing.cast(
+                str, x.cast_to(types, types, stream_types, False, __runtime__)
+            ),
+            ctx,
+        )
+
 
 class BamlHttpRequestClient:
     __options: DoNotUseDirectlyCallManager
@@ -297,6 +342,20 @@ class BamlHttpRequestClient:
         )
         return result
 
+    def GenerateQuestion(
+        self,
+        conversation: str,
+        baml_options: BamlCallOptions = {},
+    ) -> baml_py.baml_py.HTTPRequest:
+        result = self.__options.merge_options(baml_options).create_http_request_sync(
+            function_name="GenerateQuestion",
+            args={
+                "conversation": conversation,
+            },
+            mode="request",
+        )
+        return result
+
 
 class BamlHttpStreamRequestClient:
     __options: DoNotUseDirectlyCallManager
@@ -341,6 +400,20 @@ class BamlHttpStreamRequestClient:
             function_name="ExtractResume",
             args={
                 "resume": resume,
+            },
+            mode="stream",
+        )
+        return result
+
+    def GenerateQuestion(
+        self,
+        conversation: str,
+        baml_options: BamlCallOptions = {},
+    ) -> baml_py.baml_py.HTTPRequest:
+        result = self.__options.merge_options(baml_options).create_http_request_sync(
+            function_name="GenerateQuestion",
+            args={
+                "conversation": conversation,
             },
             mode="stream",
         )

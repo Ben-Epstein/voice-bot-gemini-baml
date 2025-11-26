@@ -13,7 +13,7 @@ A voice bot using Twilio, Gemini, and BAML for car rental information.
 
 1. Install dependencies:
 ```bash
-pip install -r requirements.txt
+uv sync
 ```
 
 2. Set up environment variables:
@@ -24,7 +24,7 @@ cp .env.example .env
 
 3. Deploy to Modal:
 ```bash
-modal deploy app.py
+uv run modal deploy --env NE_LECTURE src/app.py      
 ```
 
 Or run locally (set `RUN_LOCAL=1`)

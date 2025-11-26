@@ -55,6 +55,16 @@ class LlmResponseParser:
         )
         return typing.cast(types.Resume, result)
 
+    def GenerateQuestion(
+        self,
+        llm_response: str,
+        baml_options: BamlCallOptions = {},
+    ) -> str:
+        result = self.__options.merge_options(baml_options).parse_response(
+            function_name="GenerateQuestion", llm_response=llm_response, mode="request"
+        )
+        return typing.cast(str, result)
+
 
 class LlmStreamParser:
     __options: DoNotUseDirectlyCallManager
@@ -93,3 +103,13 @@ class LlmStreamParser:
             function_name="ExtractResume", llm_response=llm_response, mode="stream"
         )
         return typing.cast(stream_types.Resume, result)
+
+    def GenerateQuestion(
+        self,
+        llm_response: str,
+        baml_options: BamlCallOptions = {},
+    ) -> str:
+        result = self.__options.merge_options(baml_options).parse_response(
+            function_name="GenerateQuestion", llm_response=llm_response, mode="stream"
+        )
+        return typing.cast(str, result)

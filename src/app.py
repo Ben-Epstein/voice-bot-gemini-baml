@@ -22,6 +22,7 @@ from google.genai import types as gt
 from baml_client import types
 from dotenv import load_dotenv
 import requests
+import vllm_server
 
 load_dotenv()
 
@@ -48,19 +49,22 @@ def get_websocket() -> str:
     return websocket
 
 
-# Initialize Modal app
 app = modal.App("voice-bot-gemini-baml")
-
+PYTHON_SOURCES = [
+    "baml_client",
+    "app",
+    "db",
+    "schemas",
+    "twilio_utils",
+    "voice_agent",
+    "utils",
+    "vllm_server",
+]
 # Define Modal image with all dependencies
-image = modal.Image.debian_slim(python_version="3.11").pip_install(
-    "fastapi",
-    "twilio",
-    "google-generativeai",
-    "websockets",
-    "python-dotenv",
-    "pydantic",
-    "aiofiles",
-    "python-multipart",
+image = (
+    modal.Image.debian_slim(python_version="3.11")
+    .uv_sync()
+    .add_local_python_source(*PYTHON_SOURCES)
 )
 
 # Create persistent volume for storing profiles
@@ -186,8 +190,9 @@ async def websocket_endpoint(ws: WebSocket, from_number: str):
 @app.function(
     image=image,
     secrets=[
-        modal.Secret.from_name("gemini-api-key"),
+        modal.Secret.from_name("gemini"),
         modal.Secret.from_name("twilio-credentials"),
+        modal.Secret.from_name("modal"),
     ],
     volumes={"/profiles": volume},
 )
@@ -196,6 +201,50 @@ async def websocket_endpoint(ws: WebSocket, from_number: str):
 def fastapi_app():
     """Modal ASGI app wrapper for FastAPI"""
     return web_app
+
+
+@app.function(
+    image=vllm_server.vllm_image.uv_sync().add_local_python_source(*PYTHON_SOURCES),
+    gpu=f"{vllm_server.GPU}:{vllm_server.N_GPU}",
+    # how long should we stay up with no requests?
+    scaledown_window=15 * vllm_server.MINUTES,
+    volumes={
+        "/root/.cache/huggingface": vllm_server.hf_cache_vol,
+        "/root/.cache/vllm": vllm_server.vllm_cache_vol,
+    },
+    secrets=[
+        modal.Secret.from_name("gemini"),
+        modal.Secret.from_name("twilio-credentials"),
+        modal.Secret.from_name("modal"),
+        modal.Secret.from_name("huggingface"),
+    ],
+)
+@modal.concurrent(max_inputs=100)
+@modal.web_server(port=vllm_server.VLLM_PORT, startup_timeout=5 * vllm_server.MINUTES)
+def serve():
+    import subprocess
+
+    cmd = [
+        "vllm",
+        "serve",
+        "--uvicorn-log-level=info",
+        vllm_server.MODEL_NAME,
+        "--revision",
+        vllm_server.MODEL_REVISION,
+        "--host",
+        "0.0.0.0",
+        "--port",
+        str(vllm_server.VLLM_PORT),
+        "--enforce-eager",
+        "--max-num-seqs",
+        "16",
+        "--max-model-len",
+        "40000",
+        "--api-key",
+        vllm_server.API_KEY,
+    ]
+
+    subprocess.Popen(" ".join(cmd), shell=True)
 
 
 if __name__ == "__main__":
