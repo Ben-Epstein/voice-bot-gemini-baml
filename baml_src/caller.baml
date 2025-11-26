@@ -1,25 +1,23 @@
 // BAML configuration for intent and question extraction
 
 client<llm> Gemini {
-  provider baml-gemini-chat
-  options {
-    model "gemini-1.5-flash"
-    api_key env.GEMINI_API_KEY
+  provider vertex-ai
+    options {
+    model gemini-2.5-flash
+    project_id env.PROJECT_ID
+    location env.GEMINI_REGION
+    // base_url "https://aiplatform.googleapis.com/v1/projects/grotto-prod/locations/global/publishers/google/models"
+    generation_config {
+      temperature 0.0
+      seed 42
+      top_p 0.95
+      thinkingConfig {
+          thinkingBudget 0
+    }
+    }
   }
 }
 
-// Extract caller intent from conversation
-function ExtractIntent(conversation: string) -> string {
-  client Gemini
-  prompt #"
-    Given the following conversation from a car rental inquiry call, 
-    extract the primary intent of the caller in one short sentence.
-    
-    Conversation: {{ conversation }}
-    
-    Intent:
-  "#
-}
 
 // Extract questions from the caller
 function ExtractQuestions(conversation: string) -> string[] {
@@ -36,18 +34,25 @@ function ExtractQuestions(conversation: string) -> string[] {
 }
 
 // Extract renter profile information
-class RenterProfile {
+class CallerProfile {
   name string? @description("Name of the caller if mentioned")
   phone string? @description("Phone number if mentioned")
   email string? @description("Email address if mentioned")
   rental_dates string? @description("Desired rental dates if mentioned")
   car_preferences string[] @description("Car type or feature preferences mentioned")
-  budget_range string? @description("Budget range if mentioned")
+  budget_low float?
+  budget_high float?
   location string? @description("Pickup/dropoff location if mentioned")
-  additional_notes string? @description("Any other relevant information")
+  additional_notes string[] @description("Any other relevant information")
+  intent ("buying" | "renting" | "inquiry" | "other")? @description("Primary intent of the caller")
 }
 
-function ExtractRenterProfile(conversation: string) -> RenterProfile {
+class CallerData {
+  profile CallerProfile
+  questions string[]
+}
+
+function ExtractRenterProfile(conversation: string) -> CallerProfile {
   client Gemini
   prompt #"
     Extract renter profile information from this car rental inquiry conversation.

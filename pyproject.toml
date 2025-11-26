@@ -14,8 +14,25 @@ dependencies = [
     "pydantic",
     "aiofiles",
     "baml-py",
+    "google-genai==1.49.0",
+    "numpy>=2.3.5",
+    "audioop-lts; python_version>='3.13'", # audioop is deprecated 3.11, removed 3.13. long-term support port if we move to 3.13
+    "scipy>=1.16.3",
+    "requests>=2.32.5",
+    "python-multipart>=0.0.20",
 ]
 
 [build-system]
 requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
+
+
+[[tool.mypy.overrides]]
+module = [
+    "twilio.rest.*",
+]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.14.6",
+]
