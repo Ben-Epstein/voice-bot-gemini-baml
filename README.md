@@ -52,7 +52,7 @@ The current implementation includes BAML function definitions in `baml_src/main.
 
 1. **Generate BAML client code:**
    ```bash
-   baml generate
+   uv run baml-cli generate
    ```
 
 2. **Update the BAMLProcessor class** in `app.py` to use the generated client (see inline comments in the code)
